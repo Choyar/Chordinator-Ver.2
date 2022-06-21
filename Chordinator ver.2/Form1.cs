@@ -27,7 +27,7 @@ namespace Chordinator_ver._2
             Bitmap[] scaleImgs;
             String[] scaleStrs = new string[]
             {"rest","line","C","C sharp","D", "D sharp", "E", "F", "F sharp", "G", "G sharp", "A", "A sharp","B" ,"higher C"};
-            Point location;
+            public Point location;
 
             int val = 0;
 
@@ -73,6 +73,13 @@ namespace Chordinator_ver._2
             {
                 val = ((VScrollBar)sender).Maximum - ((VScrollBar)sender).Value;
                 picbox.Image = scaleImgs[val];
+                List<string> sc = new List<string>();
+                foreach(note n in f.melody)
+                {
+                    sc.Add(n.GetScale());
+                }
+                f.chord_Generate(f.bps,f.melody.Count/f.bps,sc,f.chordLists);
+                f.updateCandidateChord();
             }
 
             private void SetImageArray()
@@ -98,14 +105,19 @@ namespace Chordinator_ver._2
         class chord
         {
             Form1 f;
-            PictureBox picbox;
+            public PictureBox picbox;
             Bitmap[] chordImgs;
             String[] chordStrs = new string[]
-            {"C","D", "E", "F", "G", "A", "bB" ,"Cm","Csm","Dm", "Em", "Fsm", "Gm","Gsm", "Am", "Bm"};
+            {"rest","line","C","D", "E", "F", "G", "A", "B" ,"Csm","Dbm","Ebm","Dm", "Em", "Fsm", "Gm","Gsm", "Am", "Bm"};
             Point location;
 
             int val = 0;
 
+            public void setChord(string input)
+            {
+                val = Array.IndexOf(chordStrs, input);
+                picbox.Image = chordImgs[val];
+            }
             public string Getchord()
             {
                 return chordStrs[val];
@@ -122,7 +134,7 @@ namespace Chordinator_ver._2
                 f = form;
                 location = new Point(f.selectedChordBoxSample.Location.X, f.selectedChordBoxSample.Location.Y);
                 picbox = new PictureBox();
-                picbox.Size = f.picboxSample.Size;
+                picbox.Size = f.selectedChordBoxSample.Size;
                 picbox.Location = f.selectedChordBoxSample.Location;
                 picbox.SizeMode = f.selectedChordBoxSample.SizeMode;
                 f.Controls.Add(picbox);
@@ -176,26 +188,117 @@ namespace Chordinator_ver._2
 
         List<note> melody = new List<note>();
         List<Label> bars = new List<Label>();
+        List<chord> selectedChords = new List<chord>();
+        List<chord>[] candidateChords = new List<chord>[3];
+        List<string>[] chordLists = new List<string>[3];
         int bps;
         int offsetX;
         Point startLocation;
+
+        private void updateCandidateChord()
+        {
+            int offsetY = candidateChordBoxSample2.Location.Y - candidateChordBoxSample1.Location.Y;
+            for(int a=0;a<3;a++)
+            {
+                //adjust length
+                while (candidateChords[a].Count > melody.Count)
+                {
+                    candidateChords[a].Last().remove();
+                    candidateChords[a].RemoveAt(candidateChords[a].Count - 1);
+                }
+                while (candidateChords[a].Count < melody.Count)
+                {
+                    candidateChords[a].Add(new chord(this));
+                    candidateChords[a].Last().picbox.Click += candidatePicbox_Click;
+                }
+
+                //Fill in the chord
+                for(int b=0;b<chordLists[a].Count;b++)
+                {
+                    candidateChords[a][b].setChord(chordLists[a][b]);
+                    candidateChords[a][b].SetLocation(melody[b].location.X, candidateChordBoxSample1.Location.Y + offsetY * a);
+                    candidateChords[a][b].picbox.Name = $"cc{a}{b}";
+                }
+            }
+        }
+
+        //apply the selected chord
+        private void candidatePicbox_Click(object sender, EventArgs e)
+        {
+            int a = ((PictureBox)sender).Name[2] - '0';
+            int b = Convert.ToInt32(((PictureBox)sender).Name.Substring(3));
+            selectedChords[b].setChord(chordLists[a][b]);
+        }
+
+        //setup and ready to call chord_Generate
+        private void chordPrep()
+        {
+            List<string> sc = new List<string>();
+
+            foreach (note n in melody)
+            {
+                sc.Add(n.GetScale());
+            }
+            chord_Generate(bps, melody.Count / bps, sc, chordLists);
+            updateCandidateChord();
+        }
+
+        private void chord_Generate(int pai,int count,List<string> input,List<string>[] chordLists)
+        {
+            for(int a=0;a<3;a++)
+            {
+                //adjust length
+                while (chordLists[a].Count>input.Count)
+                {
+                    chordLists[a].RemoveAt(chordLists[a].Count - 1);
+                }
+                while (chordLists[a].Count < input.Count)
+                {
+                    if(a==0)
+                        chordLists[a].Add("C");
+                    else if(a==1)
+                        chordLists[a].Add("D");
+                    else if (a == 2)
+                        chordLists[a].Add("E");
+                }
+            }
+        }
         private void Form1_Load(object sender, EventArgs e)
         {
+            for(int a=0;a<3;a++)
+            {
+                chordLists[a] = new List<string>();
+                candidateChords[a] = new List<chord>();
+            }
+
             startLocation = vsbSample.Location;
             offsetX = picboxSample2.Location.X - picboxSample.Location.X;
             bps = (int)numericUpDown1.Value;
             for(int a=0;a<bps;a++)
             {
                 melody.Add(new note(this));
+                selectedChords.Add(new chord(this));
+                selectedChords.Last().picbox.Name = $"s{selectedChords.Count - 1}";
+                selectedChords.Last().picbox.Click += selectedPicbox_Click;
             }
             ArrangeMelody();
         }
+
+        private void selectedPicbox_Click(object sender, EventArgs e)
+        {
+            int num =Convert.ToInt32(((PictureBox)sender).Name.Substring(1));
+            selectedChords[num].setChord("rest");
+        }
+
         private void ArrangeMelody()
         {
             ClearBars();
             while(melody.Count%bps!=0)
             {
                 melody.Add(new note(this));
+                selectedChords.Add(new chord(this));
+                selectedChords.Last().picbox.Name = $"s{selectedChords.Count - 1}";
+                selectedChords.Last().picbox.Click += selectedPicbox_Click;
             }
             int section = 0;
             for(int a=0;a<melody.Count;a++)
@@ -206,6 +309,7 @@ namespace Chordinator_ver._2
                     section++;
                 }
                 melody[a].SetLocation(startLocation.X + offsetX * (a + section),startLocation.Y);
+                selectedChords[a].SetLocation(startLocation.X + offsetX * (a + section), selectedChordBoxSample.Location.Y);
             }
             setbar(melody.Count + section);
             bars.Last().Text = "||";
@@ -219,6 +323,8 @@ namespace Chordinator_ver._2
             {
                 button2.Enabled = false;
             }
+
+            chordPrep();
         }
         private void ClearBars()
         {
@@ -251,6 +357,9 @@ namespace Chordinator_ver._2
             for(int a=0;a<bps;a++)
             {
                 melody.Add(new note(this));
+                selectedChords.Add(new chord(this));
+                selectedChords.Last().picbox.Name = $"s{selectedChords.Count - 1}";
+                selectedChords.Last().picbox.Click += selectedPicbox_Click;
             }
             ArrangeMelody();
         }
@@ -260,6 +369,8 @@ namespace Chordinator_ver._2
             {
                 melody.Last().remove();
                 melody.RemoveAt(melody.Count - 1);
+                selectedChords.Last().remove();
+                selectedChords.RemoveAt(selectedChords.Count - 1);
             }
             ArrangeMelody();
         }
@@ -272,12 +383,12 @@ namespace Chordinator_ver._2
             float[] frequencies = new float[] { 261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f, 369.99f, 392.00f, 415.30f, 440.00f, 466.16f, 493.88f, 523.25f };
             int beat = (int)(((double)1 / (double)numericUpDown2.Value * 60) * 1000);
             SineWaveProvider32 swp = new SineWaveProvider32();
-            swp.SetWaveFormat(16000, 1);
-            swp.Frequency = frequencies[0];
+            swp.SetWaveFormat(44100, 1);
             WaveOut wo = new WaveOut();
             wo.Init(swp);
             for (int a = 0; a < melody.Count; a++)
             {
+                //play melody
                 if (melody[a].GetScale()=="line")
                 {
                     Thread.Sleep(beat);
@@ -290,7 +401,7 @@ namespace Chordinator_ver._2
                 else
                 {
                     wo.Stop();
-                    swp.Frequency = (float)frequencies[Array.IndexOf(scaleStrs, melody[a].GetScale())];
+                    swp.Frequency = frequencies[Array.IndexOf(scaleStrs, melody[a].GetScale())];
                     wo.Play();
                     Thread.Sleep(beat);
                 }
@@ -304,9 +415,140 @@ namespace Chordinator_ver._2
         private void Button3_Click(object sender, EventArgs e)
         {
             Thread melodyT = new Thread(new ThreadStart(PlayMelody));
-            button3.Enabled = false;
             melodyT.Start();
+            timer1.Interval = (int)(((double)1 / (double)numericUpDown2.Value * 60) * 1000)*melody.Count;
+            button3.Enabled = false;
+            button4.Enabled = false;
+            timer1.Enabled = true;
+            
+        }
+
+        private void PlayMpChord()
+        {
+            int beat = (int)(((double)1 / (double)numericUpDown2.Value * 60) * 1000);
+            float[] frequencies = new float[] { 261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f, 369.99f, 392.00f, 415.30f, 440.00f, 466.16f, 493.88f, 523.25f };
+
+            String[] scaleStrs = new string[]
+                {"C","C sharp","D", "D sharp", "E", "F", "F sharp", "G", "G sharp", "A", "A sharp","B" ,"higher C"};
+
+            String[] chordStrs = new string[]
+            {"rest","line","C","D", "E", "F", "G", "A", "B" ,"Csm","Dbm","Ebm","Dm", "Em", "Fsm", "Gm","Gsm", "Am", "Bm"};
+            
+            //setup melody player
+            SineWaveProvider32 swpMelody = new SineWaveProvider32();
+            swpMelody.SetWaveFormat(44100, 1);
+            WaveOut woMelody = new WaveOut();
+            woMelody.Init(swpMelody);
+
+            //setup chord players
+            SineWaveProvider32[] swpChord = new SineWaveProvider32[3];
+            WaveOut[] woChord = new WaveOut[3];
+            for (int a=0;a<3;a++)
+            {
+                swpChord[a] = new SineWaveProvider32();
+                swpChord[a].SetWaveFormat(44100, 1);
+                woChord[a] = new WaveOut();
+                woChord[a].Init(swpChord[a]);
+            }
+
+
+            for (int a = 0; a < melody.Count; a++)
+            {
+                //play chord
+                if (selectedChords[a].Getchord() == "line")
+                {
+                    //keep playing last note
+                }
+                else if (selectedChords[a].Getchord() == "rest")
+                {
+                    for (int b = 0; b < 3; b++)
+                    {
+                        woChord[b].Stop();
+                    }
+                }
+                else
+                {
+                    for (int b = 0; b < 3; b++)
+                    {
+                        woChord[b].Stop();
+                    }
+                    int val = Array.IndexOf(scaleStrs, selectedChords[a].Getchord().Substring(0, 1));
+                    if(selectedChords[a].Getchord().Length>1&& selectedChords[a].Getchord()[1]=='b')
+                    {
+                        val -= 1;
+                    }
+                    else if(selectedChords[a].Getchord().Length > 1 && selectedChords[a].Getchord()[1] == 's')
+                    {
+                        val += 1;
+                    }
+                    bool major = true;
+                    if (selectedChords[a].Getchord()[selectedChords[a].Getchord().Length - 1] == 'm')
+                    {
+                        major=false;
+                    }
+                    if(major)
+                    {
+                        swpChord[0].Frequency = frequencies[val];
+                        swpChord[1].Frequency = frequencies[(val + 4) % (frequencies.Length - 1)];
+                        swpChord[2].Frequency = frequencies[(val + 4 + 3) % (frequencies.Length - 1)];
+                    }
+                    else
+                    {
+                        swpChord[0].Frequency = frequencies[val];
+                        swpChord[1].Frequency = frequencies[(val + 3) % (frequencies.Length - 1)];
+                        swpChord[2].Frequency = frequencies[(val + 3 + 4) % (frequencies.Length - 1)];
+                    }
+                    for (int b = 0; b < 3; b++)
+                    {
+                        woChord[b].Play();
+                    }
+                }
+
+                //play melody
+                if (melody[a].GetScale() == "line")
+                {
+                    //keep playing last note
+                }
+                else if (melody[a].GetScale() == "rest")
+                {
+                    woMelody.Stop();
+                }
+                else
+                {
+                    woMelody.Stop();
+                    swpMelody.Frequency = (float)frequencies[Array.IndexOf(scaleStrs, melody[a].GetScale())];
+                    woMelody.Play();
+                }
+
+                Thread.Sleep(beat);
+            }
+            for (int b = 0; b < 3; b++)
+            {
+                woChord[b].Stop();
+                woChord[b].Dispose();
+                woChord[b] = null;
+            }
+            woMelody.Stop();
+            woMelody.Dispose();
+            woMelody = null;
+        }
+
+        private void Button4_Click(object sender, EventArgs e)
+        {
+            Thread chordT = new Thread(new ThreadStart(PlayMpChord));
+            chordT.Start();
+            timer1.Interval = (int)(((double)1 / (double)numericUpDown2.Value * 60) * 1000) * melody.Count;
+            button3.Enabled = false;
+            button4.Enabled = false;
+            timer1.Enabled = true;
+            
+        }
+
+        private void Timer1_Tick(object sender, EventArgs e)
+        {
             button3.Enabled = true;
+            button4.Enabled = true;
+            timer1.Enabled = false;
         }
     }
 }
