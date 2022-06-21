@@ -5,8 +5,9 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Windows.Forms;
+using NAudio.Wave;
 
 namespace Chordinator_ver._2
 {
@@ -27,6 +28,14 @@ namespace Chordinator_ver._2
             String[] scaleStrs = new string[]
             {"rest","line","C","C sharp","D", "D sharp", "E", "F", "F sharp", "G", "G sharp", "A", "A sharp","B" ,"higher C"};
             Point location;
+
+            int val = 0;
+
+            public string GetScale()
+            {
+                return scaleStrs[val];
+            }
+
             public void SetLocation(int x,int y)
             {
                 location.X = x;
@@ -62,7 +71,7 @@ namespace Chordinator_ver._2
 
             private void Vsbar_Scroll(object sender, ScrollEventArgs e)
             {
-                int val = ((VScrollBar)sender).Maximum - ((VScrollBar)sender).Value;
+                val = ((VScrollBar)sender).Maximum - ((VScrollBar)sender).Value;
                 picbox.Image = scaleImgs[val];
             }
 
@@ -85,6 +94,84 @@ namespace Chordinator_ver._2
                 catch { }
             }
 
+        }
+        class chord
+        {
+            Form1 f;
+            PictureBox picbox;
+            Bitmap[] chordImgs;
+            String[] chordStrs = new string[]
+            {"C","D", "E", "F", "G", "A", "bB" ,"Cm","Csm","Dm", "Em", "Fsm", "Gm","Gsm", "Am", "Bm"};
+            Point location;
+
+            int val = 0;
+
+            public string Getchord()
+            {
+                return chordStrs[val];
+            }
+
+            public void SetLocation(int x, int y)
+            {
+                location.X = x;
+                location.Y = y;
+                picbox.Location = location;
+            }
+            public chord(Form1 form)
+            {
+                f = form;
+                location = new Point(f.selectedChordBoxSample.Location.X, f.selectedChordBoxSample.Location.Y);
+                picbox = new PictureBox();
+                picbox.Size = f.picboxSample.Size;
+                picbox.Location = f.selectedChordBoxSample.Location;
+                picbox.SizeMode = f.selectedChordBoxSample.SizeMode;
+                f.Controls.Add(picbox);
+                picbox.BringToFront();
+
+                SetImageArray();
+                picbox.Image = chordImgs[0];
+            }
+            private void SetImageArray()
+            {
+                chordImgs = new Bitmap[chordStrs.Length];
+                for (int a = 0; a < chordStrs.Length; a++)
+                {
+                    chordImgs[a] = new Bitmap($"{chordStrs[a]}.png");
+                }
+            }
+            public void remove()
+            {
+                try
+                {
+                    f.Controls.Remove(picbox);
+                }
+                catch { }
+            }
+        }
+        public class SineWaveProvider32 : WaveProvider32
+        {
+            int sample;
+
+            public SineWaveProvider32()
+            {
+                Frequency = 1000;
+                Amplitude = 0.15f;          
+            }
+
+            public float Frequency { get; set; }
+            public float Amplitude { get; set; }
+
+            public override int Read(float[] buffer, int offset, int sampleCount)
+            {
+                int sampleRate = WaveFormat.SampleRate;
+                for (int n = 0; n < sampleCount; n++)
+                {
+                    buffer[n + offset] = (float)(Amplitude * Math.Sin((2 * Math.PI * sample * Frequency) / sampleRate));
+                    sample++;
+                    if (sample >= sampleRate) sample = 0;
+                }
+                return sampleCount;
+            }
         }
 
         List<note> melody = new List<note>();
@@ -175,6 +262,51 @@ namespace Chordinator_ver._2
                 melody.RemoveAt(melody.Count - 1);
             }
             ArrangeMelody();
+        }
+
+        private void PlayMelody()
+        {
+            String[] scaleStrs = new string[]
+                {"C","C sharp","D", "D sharp", "E", "F", "F sharp", "G", "G sharp", "A", "A sharp","B" ,"higher C"};
+
+            float[] frequencies = new float[] { 261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f, 369.99f, 392.00f, 415.30f, 440.00f, 466.16f, 493.88f, 523.25f };
+            int beat = (int)(((double)1 / (double)numericUpDown2.Value * 60) * 1000);
+            SineWaveProvider32 swp = new SineWaveProvider32();
+            swp.SetWaveFormat(16000, 1);
+            swp.Frequency = frequencies[0];
+            WaveOut wo = new WaveOut();
+            wo.Init(swp);
+            for (int a = 0; a < melody.Count; a++)
+            {
+                if (melody[a].GetScale()=="line")
+                {
+                    Thread.Sleep(beat);
+                }
+                else if(melody[a].GetScale() == "rest")
+                {
+                    wo.Stop();
+                    Thread.Sleep(beat);
+                }
+                else
+                {
+                    wo.Stop();
+                    swp.Frequency = (float)frequencies[Array.IndexOf(scaleStrs, melody[a].GetScale())];
+                    wo.Play();
+                    Thread.Sleep(beat);
+                }
+                
+            }
+            wo.Stop();
+            wo.Dispose();
+            wo = null;
+        }
+
+        private void Button3_Click(object sender, EventArgs e)
+        {
+            Thread melodyT = new Thread(new ThreadStart(PlayMelody));
+            button3.Enabled = false;
+            melodyT.Start();
+            button3.Enabled = true;
         }
     }
 }
