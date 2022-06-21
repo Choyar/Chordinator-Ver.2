@@ -26,7 +26,7 @@ namespace Chordinator_ver._2
             VScrollBar vsbar;
             Bitmap[] scaleImgs;
             String[] scaleStrs = new string[]
-            {"rest","line","C","C sharp","D", "D sharp", "E", "F", "F sharp", "G", "G sharp", "A", "A sharp","B" ,"higher C"};
+            {"rest","line","C","Cs","D", "Ds", "E", "F", "Fs", "G", "Gs", "A", "As","B" ,"higher C"};
             public Point location;
 
             int val = 0;
@@ -108,7 +108,13 @@ namespace Chordinator_ver._2
             public PictureBox picbox;
             Bitmap[] chordImgs;
             String[] chordStrs = new string[]
-            {"rest","line","C","D", "E", "F", "G", "A", "B" ,"Csm","Dbm","Ebm","Dm", "Em", "Fsm", "Gm","Gsm", "Am", "Bm"};
+            {"rest","line","C","D", "E", "F", "G", "A", "B" ,
+                            "Cm","Dm","Em","Fm","Gm","Am","Bm",
+                            "Cs","Ds","Es","Fs","Gs","As",
+                            "Csm","Dsm","Esm","Fsm","Gsm","Asm",
+                            "Db", "Eb", "Fb", "Gb", "Ab", "Bb" ,
+                            "Dbm", "Ebm", "Fbm", "Gbm", "Abm", "Bbm" ,
+            };
             Point location;
 
             int val = 0;
@@ -257,9 +263,9 @@ namespace Chordinator_ver._2
                     if(a==0)
                         chordLists[a].Add("C");
                     else if(a==1)
-                        chordLists[a].Add("D");
+                        chordLists[a].Add("Cm");
                     else if (a == 2)
-                        chordLists[a].Add("E");
+                        chordLists[a].Add("D");
                 }
             }
         }
@@ -378,7 +384,7 @@ namespace Chordinator_ver._2
         private void PlayMelody()
         {
             String[] scaleStrs = new string[]
-                {"C","C sharp","D", "D sharp", "E", "F", "F sharp", "G", "G sharp", "A", "A sharp","B" ,"higher C"};
+                {"C","Cs","D", "Ds", "E", "F", "Fs", "G", "Gs", "A", "As","B" ,"higher C"};
 
             float[] frequencies = new float[] { 261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f, 369.99f, 392.00f, 415.30f, 440.00f, 466.16f, 493.88f, 523.25f };
             int beat = (int)(((double)1 / (double)numericUpDown2.Value * 60) * 1000);
@@ -427,12 +433,10 @@ namespace Chordinator_ver._2
         {
             int beat = (int)(((double)1 / (double)numericUpDown2.Value * 60) * 1000);
             float[] frequencies = new float[] { 261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f, 369.99f, 392.00f, 415.30f, 440.00f, 466.16f, 493.88f, 523.25f };
+            float[] chordFrequencies = new float[] { 261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f, 369.99f, 392.00f, 415.30f, 440.00f, 466.16f, 493.88f, 523.25f, 554.37f, 587.33f , 622.25f , 659.26f , 698.46f , 739.99f };
 
             String[] scaleStrs = new string[]
-                {"C","C sharp","D", "D sharp", "E", "F", "F sharp", "G", "G sharp", "A", "A sharp","B" ,"higher C"};
-
-            String[] chordStrs = new string[]
-            {"rest","line","C","D", "E", "F", "G", "A", "B" ,"Csm","Dbm","Ebm","Dm", "Em", "Fsm", "Gm","Gsm", "Am", "Bm"};
+                {"C","Cs","D", "Ds", "E", "F", "Fs", "G", "Gs", "A", "As","B" ,"higher C"};
             
             //setup melody player
             SineWaveProvider32 swpMelody = new SineWaveProvider32();
@@ -447,6 +451,7 @@ namespace Chordinator_ver._2
             {
                 swpChord[a] = new SineWaveProvider32();
                 swpChord[a].SetWaveFormat(44100, 1);
+                swpChord[a].Amplitude = 0.08f;
                 woChord[a] = new WaveOut();
                 woChord[a].Init(swpChord[a]);
             }
@@ -488,15 +493,15 @@ namespace Chordinator_ver._2
                     }
                     if(major)
                     {
-                        swpChord[0].Frequency = frequencies[val];
-                        swpChord[1].Frequency = frequencies[(val + 4) % (frequencies.Length - 1)];
-                        swpChord[2].Frequency = frequencies[(val + 4 + 3) % (frequencies.Length - 1)];
+                        swpChord[0].Frequency = chordFrequencies[val];
+                        swpChord[1].Frequency = chordFrequencies[(val + 4) ];
+                        swpChord[2].Frequency = chordFrequencies[(val + 4 + 3) ];
                     }
                     else
                     {
-                        swpChord[0].Frequency = frequencies[val];
-                        swpChord[1].Frequency = frequencies[(val + 3) % (frequencies.Length - 1)];
-                        swpChord[2].Frequency = frequencies[(val + 3 + 4) % (frequencies.Length - 1)];
+                        swpChord[0].Frequency = chordFrequencies[val];
+                        swpChord[1].Frequency = chordFrequencies[(val + 3) ];
+                        swpChord[2].Frequency = chordFrequencies[(val + 3 + 4) ];
                     }
                     for (int b = 0; b < 3; b++)
                     {
