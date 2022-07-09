@@ -78,8 +78,7 @@ namespace Chordinator_ver._2
                 {
                     sc.Add(n.GetScale());
                 }
-                f.chord_Generate(f.bps,f.melody.Count/f.bps,sc,f.chordLists);
-                f.updateCandidateChord();
+                f.chord_Generate();
             }
 
             private void SetImageArray()
@@ -100,7 +99,7 @@ namespace Chordinator_ver._2
                 }
                 catch { }
             }
-
+            
         }
         class chord
         {
@@ -113,7 +112,7 @@ namespace Chordinator_ver._2
                             "Cs","Ds","Es","Fs","Gs","As",
                             "Csm","Dsm","Esm","Fsm","Gsm","Asm",
                             "Db", "Eb", "Fb", "Gb", "Ab", "Bb" ,
-                            "Dbm", "Ebm", "Fbm", "Gbm", "Abm", "Bbm" ,
+                            "Dbm", "Ebm", "Fbm", "Gbm", "Abm", "Bbm"
             };
             Point location;
 
@@ -196,15 +195,35 @@ namespace Chordinator_ver._2
         List<Label> bars = new List<Label>();
         List<chord> selectedChords = new List<chord>();
         List<chord>[] candidateChords = new List<chord>[3];
-        List<string>[] chordLists = new List<string>[3];
+
         int bps;
         int offsetX;
         Point startLocation;
 
-        private void updateCandidateChord()
+        //apply the selected chord
+        private void candidatePicbox_Click(object sender, EventArgs e)
+        {
+            int a = ((PictureBox)sender).Name[2] - '0';
+            int b = Convert.ToInt32(((PictureBox)sender).Name.Substring(3));
+            selectedChords[b].setChord(candidateChords[a][b].Getchord());
+        }
+
+        //setup and ready to call chord_Generate
+        private void chordPrep()
+        {
+            List<string> sc = new List<string>();
+
+            foreach (note n in melody)
+            {
+                sc.Add(n.GetScale());
+            }
+            chord_Generate();
+        }
+
+        private void chord_Generate()
         {
             int offsetY = candidateChordBoxSample2.Location.Y - candidateChordBoxSample1.Location.Y;
-            for(int a=0;a<3;a++)
+            for (int a = 0; a < 3; a++)
             {
                 //adjust length
                 while (candidateChords[a].Count > melody.Count)
@@ -219,53 +238,11 @@ namespace Chordinator_ver._2
                 }
 
                 //Fill in the chord
-                for(int b=0;b<chordLists[a].Count;b++)
+                for (int b = 0; b < candidateChords[a].Count; b++)
                 {
-                    candidateChords[a][b].setChord(chordLists[a][b]);
+                    candidateChords[a][b].setChord("C");
                     candidateChords[a][b].SetLocation(melody[b].location.X, candidateChordBoxSample1.Location.Y + offsetY * a);
                     candidateChords[a][b].picbox.Name = $"cc{a}{b}";
-                }
-            }
-        }
-
-        //apply the selected chord
-        private void candidatePicbox_Click(object sender, EventArgs e)
-        {
-            int a = ((PictureBox)sender).Name[2] - '0';
-            int b = Convert.ToInt32(((PictureBox)sender).Name.Substring(3));
-            selectedChords[b].setChord(chordLists[a][b]);
-        }
-
-        //setup and ready to call chord_Generate
-        private void chordPrep()
-        {
-            List<string> sc = new List<string>();
-
-            foreach (note n in melody)
-            {
-                sc.Add(n.GetScale());
-            }
-            chord_Generate(bps, melody.Count / bps, sc, chordLists);
-            updateCandidateChord();
-        }
-
-        private void chord_Generate(int pai,int count,List<string> input,List<string>[] chordLists)
-        {
-            for(int a=0;a<3;a++)
-            {
-                //adjust length
-                while (chordLists[a].Count>input.Count)
-                {
-                    chordLists[a].RemoveAt(chordLists[a].Count - 1);
-                }
-                while (chordLists[a].Count < input.Count)
-                {
-                    if(a==0)
-                        chordLists[a].Add("C");
-                    else if(a==1)
-                        chordLists[a].Add("Cm");
-                    else if (a == 2)
-                        chordLists[a].Add("D");
                 }
             }
         }
@@ -273,7 +250,6 @@ namespace Chordinator_ver._2
         {
             for(int a=0;a<3;a++)
             {
-                chordLists[a] = new List<string>();
                 candidateChords[a] = new List<chord>();
             }
 
@@ -293,7 +269,15 @@ namespace Chordinator_ver._2
         private void selectedPicbox_Click(object sender, EventArgs e)
         {
             int num =Convert.ToInt32(((PictureBox)sender).Name.Substring(1));
-            selectedChords[num].setChord("rest");
+            if(selectedChords[num].Getchord()=="rest")
+            {
+                selectedChords[num].setChord("line");
+            }
+            else
+            {
+                selectedChords[num].setChord("rest");
+            }
+            
         }
 
         private void ArrangeMelody()
@@ -329,8 +313,7 @@ namespace Chordinator_ver._2
             {
                 button2.Enabled = false;
             }
-
-            chordPrep();
+            chord_Generate();
         }
         private void ClearBars()
         {
